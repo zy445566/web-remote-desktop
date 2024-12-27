@@ -16,3 +16,5 @@ server.on('upgrade', function upgrade(request, socket, head) {
 server.listen(3000, () => {
   console.log('Running at http://localhost:3000');
 });
+
+server.close()
