@@ -10,7 +10,7 @@ npm i web-remote-desktop
 ```ts
 import * as handler  from "serve-handler";
 import {createServer}  from "http";
-import {createRemoteDesktopWebSocketServer, getRemoteDesktopWebStaticDir}  from "./index";
+import {createRemoteDesktopWebSocketServer, getRemoteDesktopWebStaticDir}  from "web-remote-desktop";
 
 // create your server
 const server = createServer((request, response) => {
