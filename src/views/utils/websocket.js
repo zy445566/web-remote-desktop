@@ -2,7 +2,7 @@ import { v1 as uuidv1 } from 'uuid';
 
 export class InvokeWebSocketClient {
     constructor() {
-        this.ws = new WebSocket(`ws://${window.location.host}`)
+        this.ws = new WebSocket(`ws://${window.location.host}${window.location.pathname}`)
         this.invokeMap = {}
         this.ws.onmessage = (e) => {
             const data = JSON.parse(e.data)

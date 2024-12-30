@@ -1,71 +1,24 @@
-import * as robot from "robotjs";
+import {getScreenSize,getBlockScreen,getScreen,mouseToggle,keyToggle} from "./robot";
 import { WebSocketServer } from 'ws';
 import * as path from "path";
 
-function getMouseButtonByMouseEvent(n) {
-  switch (n) {
-    case 0:
-      return "left";
-    case 1:
-      return "middle";
-    case 2:
-      return "right";
-    default:
-      return "left";
-  }
-}
-
-function getMouseTypeByMouseEvent(type) {
-  switch (type) {
-    case "mouseup":
-      return "up";
-    case "mousedown":
-      return "down";
-    default:
-      return "down";
-  }
-}
-
-function mouseToggle({rateX,rateY,type,button}) {
-  const nowScreenSize = robot.getScreenSize()
-  robot.moveMouse(nowScreenSize.width*rateX, nowScreenSize.height*rateY);
-  robot.mouseToggle(getMouseTypeByMouseEvent(type),getMouseButtonByMouseEvent(button));
-}
-
-function getKeyTypeByKeyEvent(type) {
-  switch (type) {
-    case "keyup":
-      return "up";
-    case "keydown":
-      return "down";
-    default:
-      return "down";
-  }
-}
-
-function getKeyByKeyEvent(key) {
-  return key.toLowerCase()
-}
-
-
-function keyToggle({key,type}) {
-  robot.keyToggle(getKeyByKeyEvent(key), getKeyTypeByKeyEvent(type));
-}
 
 
 
 const doRemoteDesktopWebSocket = async (event) =>{
   switch (event.command) {
     case 'getScreenSize':
-      return robot.getScreenSize();
+      return getScreenSize();
     case 'getScreen':
-      return robot.screen.capture();
+        return getScreen();
+    case 'getBlockScreen':
+      return getBlockScreen(event.params);
     case  'mouseToggle':
       return mouseToggle(event.params)
     case  'keyToggle':
         return keyToggle(event.params)
     default:
-      return 'Unknown command';
+      throw new Error('Unknown command');
   }
 }
 

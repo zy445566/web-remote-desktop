@@ -1,11 +1,18 @@
 import styles from "./index.module.css";
 import { useEffect, useState, useRef } from 'react';
 import { InvokeWebSocketClient } from '../utils/websocket';
+import { v1 as uuidv1 } from 'uuid';
 
 
 let ws = null
+
+const sessionId = uuidv1()
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const RemoteScreen = () => {
     const canvasRef = useRef(null);
+    const [isInit, setIsInit] = useState(false)
     const [screenSizeData, setScreenSizeData] = useState(null)
 
     const initRemoteDesktop = async () => {
@@ -16,34 +23,90 @@ const RemoteScreen = () => {
             width: nowScreenSizeData.width,
             height: nowScreenSizeData.height
         })
+        setIsInit(true)
         return () => {
             ws.close()
         }
     }
-    const drawScreen = async () => {
-        if (!screenSizeData) { return }
-        if (!canvasRef) { return }
+    const MaxWaitTime = 500
+
+    let imageFullScreenData = null
+    const drawScreen = async (waitTime = MaxWaitTime) => {
+        if (!canvasRef?.current) { return }
         const canvas = canvasRef.current
-        const nowScreenData = await ws.invoke('getScreen', {})
-        const ctx = canvas.getContext('2d');
-        const imageData = ctx.createImageData(nowScreenData.width, nowScreenData.height);
+        const {
+            width,
+            height,
+            bytesPerPixel,
+            image
+        } = await ws.invoke('getScreen', {})
         setScreenSizeData({
-            width: nowScreenData.width,
-            height: nowScreenData.height
+            width,
+            height
         })
-        const nowScreenimageData = nowScreenData.image.data;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-            imageData.data[i] = nowScreenimageData[i + 2];     // Red
-            imageData.data[i + 1] = nowScreenimageData[i + 1];   // Green
-            imageData.data[i + 2] = nowScreenimageData[i];   // Blue
-            imageData.data[i + 3] = 255; // Alpha (fully opaque)
+        const ctx = canvas.getContext('2d');
+        if (!imageFullScreenData) {
+            imageFullScreenData = ctx.createImageData(width, height);
         }
-        ctx.putImageData(imageData, 0, 0);
+        if (imageFullScreenData.width !== width || imageFullScreenData.height !== height) {
+            imageFullScreenData = ctx.createImageData(width, height);
+        }
+        const nowScreenimageData = image.data;
+        for (let i = 0; i < nowScreenimageData.length; i += 4) {
+            imageFullScreenData.data[i] = nowScreenimageData[i + 2];     // Red
+            imageFullScreenData.data[i + 1] = nowScreenimageData[i + 1];   // Green
+            imageFullScreenData.data[i + 2] = nowScreenimageData[i];   // Blue
+            imageFullScreenData.data[i + 3] = nowScreenimageData[i + 3]; // Alpha (fully opaque)
+        }
+        ctx.putImageData(imageFullScreenData, 0, 0);
+        await sleep(waitTime)
+        await drawScreen()
+    }
+
+    let imageScreenBlockData = null
+    const drawBlockScreen = async (waitTime = MaxWaitTime) => {
+        if (!canvasRef?.current) { return }
+        const canvas = canvasRef.current
+        const nowBlockScreenData = await ws.invoke('getBlockScreen', { sessionId })
+        setScreenSizeData({
+            width: nowBlockScreenData.width,
+            height: nowBlockScreenData.height
+        })
+        const ctx = canvas.getContext('2d');
+        const {
+            width,
+            height,
+            bytesPerPixel,
+            changeBlockList
+        } = nowBlockScreenData
+        if (!imageScreenBlockData) {
+            imageScreenBlockData = ctx.createImageData(width, height);
+        }
+        if (imageScreenBlockData.width !== width || imageScreenBlockData.height !== height) {
+            imageFullScreenData = ctx.createImageData(width, height);
+        }
+        for (let i = 0; i < changeBlockList.length; i++) {
+            if (!changeBlockList[i]) {
+                continue
+            }
+            const nowBlock = changeBlockList[i].data
+            const blockOffset = i * nowBlock.length
+            for (let j = 0; j < nowBlock.length; j += bytesPerPixel) {
+                const offset = blockOffset + j
+                imageScreenBlockData.data[offset] = nowBlock[j + 2];     // Red
+                imageScreenBlockData.data[offset + 1] = nowBlock[j + 1];   // Green
+                imageScreenBlockData.data[offset + 2] = nowBlock[j];   // Blue
+                imageScreenBlockData.data[offset + 3] = nowBlock[j + 3]
+            }
+        }
+        console.log(changeBlockList)
+        ctx.putImageData(imageScreenBlockData, 0, 0);
+        await sleep(waitTime)
+        await drawBlockScreen()
     }
 
     const listenOperation = () => {
-        if (!screenSizeData) { return () => { } }
-        if (!canvasRef) { return () => { } }
+        if (!canvasRef?.current) { return () => { } }
         const canvas = canvasRef.current
 
         const mouseEvent = async (e) => {
@@ -108,18 +171,16 @@ const RemoteScreen = () => {
     }, [])
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            drawScreen()
-        }, 300)
+        drawBlockScreen()
+        // drawScreen()
         const removeListen = listenOperation()
         return () => {
-            clearInterval(timer)
             removeListen()
         }
-    }, [screenSizeData, canvasRef])
+    }, [isInit])
 
     return (
-        screenSizeData && <canvas ref={canvasRef} className={styles.contain} width={screenSizeData.width} height={screenSizeData.height} />
+        isInit && <canvas ref={canvasRef} className={styles.contain} width={screenSizeData.width} height={screenSizeData.height} />
     );
 };
 
