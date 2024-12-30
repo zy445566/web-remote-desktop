@@ -14,6 +14,12 @@ import {createRemoteDesktopWebSocketServer, getRemoteDesktopWebStaticDir}  from 
 
 // create your server
 const server = createServer((request, response) => {
+  // custom path you want
+  // if (new URL(request.url).pathname === '/web-remote') {
+  //   return handler(request, response,{
+  //     public:getRemoteDesktopWebStaticDir() //there is Remote Desktop Web front web path
+  //   });
+  // }
   return handler(request, response,{
       public:getRemoteDesktopWebStaticDir() //there is Remote Desktop Web front web path
   });
@@ -24,6 +30,10 @@ const rdwss = createRemoteDesktopWebSocketServer()
 
 // use Remote Desktop Web Socket when websocket open
 server.on('upgrade', function upgrade(request, socket, head) {
+  // custom path you want
+  // if (new URL(request.url).pathname === '/web-remote') {
+  //   return rdwss(request, socket, head);
+  // }
   return rdwss(request, socket, head);
 });
 
